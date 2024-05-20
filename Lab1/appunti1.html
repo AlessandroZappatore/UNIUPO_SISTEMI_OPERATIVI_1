@@ -1,0 +1,276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+  
+  <title>Appunti Laboratorio Sistemi Operativi, Parte 1</title><meta name="author" content="Daniele Theseider Dupré"></head>
+<body>
+<h2>APPUNTI DI SISTEMI OPERATIVI 1 PER LE ESERCITAZIONI IN LABORATORIO<br>
+</h2>
+
+<h2>PARTE 1: INTRODUZIONE ALLE CHIAMATE DI SISTEMA</h2>
+<h4>**************************************</h4>
+<h4>ALCUNE SYSTEM CALLS PER GESTIONE FILES </h4>
+<h4>**************************************</h4>
+Forniscono I/O a basso livello. Le usiamo come primi esempi
+perché si tratta di operazioni (aprire un file, leggere o
+scrivere su file) il cui significato è noto anche a chi non
+conosce ancora molto dei sistemi operativi. <br>
+É&nbsp;bene sapere che esistono, ma tipicamente per operare su
+files è meglio usare le funzioni di libreria, che sono
+implementate con le chiamate di sistema ma offrono diversi vantaggi (si
+vedranno più avanti alcune differenze).<br>
+Le chiamate di sistema operano sui files tramite "descrittori di file":
+numeri interi usati come indice nella tabella dei file aperti. I
+descrittori 0, 1, 2 corrispondono ai file che costituiscono i
+cosiddetti "stream"
+per lo standard input, standard output e standard error di un
+programma.
+<br>
+Lo standard input, per default associato alla tastiera (quando la
+finestra selezionata è quella da cui è stato fatto
+partire il programma), è il file da cui leggono funzioni come
+getchar e scanf, mentre
+lo standard output, per default associato alla finestra in cui il
+programma è stato lanciato, è quello su cui scrivono
+funzioni come putchar e printf.<br>
+Lo stream per lo "standard error" esiste per dare la possibilità
+di separare l'output "normale" di un programma e i messaggi di errore.<br>
+<br>
+Le seguenti sono descrizioni delle chiamate di sistema molto
+semplificate rispetto a quelle che si trovano nel "man":<br>
+<pre>OPEN:</pre>
+<pre>	int open(const char *pathname, int flags, /*&nbsp; mode_t&nbsp; mode&nbsp; */ ...);</pre>
+Apre il file avente pathname "pathname" con modalità di apertura
+"flags"; restituisce un descrittore di file.<br>
+Con il bit opportuno settato in "flags" crea il file, se non esiste, con
+i diritti di accesso passati in "mode".
+<pre><br>CREAT:</pre>
+<pre>	int creat(const char *pathname, mode_t mode);</pre>
+Crea il file avente pathname "pathname" e diritti di accesso "mode".
+<pre><br>READ:</pre>
+<pre>	ssize_t read(int fd, void *buf, size_t count);</pre>
+Cerca di leggere "count" bytes dal file associato a "fd" (un descrittore
+restituito da una open precedente) copiandoli in memoria a
+partire dall'indirizzo "buf"; restituisce il numero di bytes
+effettivamente
+letti
+<pre><br>WRITE:</pre>
+<pre>	ssize_t write(int fd, const void *buf, size_t count);</pre>
+Scrive fino a "count" bytes nel file associato a "fd" copiandoli dalla
+memoria a partire dall'indirizzo "buf"; restituisce il numero
+di bytes effettivamente scritti.
+<pre><br>CLOSE:</pre>
+<pre>	int close(int fd);</pre>
+Chiude il file associato a "fd".
+<pre><br>LSEEK:</pre>
+<pre>	off_t lseek(int fildes, off_t offset, int whence);</pre>sposta il
+puntatore di lettura/scrittura di "fildes" del numero di
+bytes "offset" a partire dalla posizione specificata da "whence"
+(dall'inizio, dalla posizione corrente o dalla fine). Se l'ultima
+operazione è stata read o write, la posizione corrente del puntatore di
+lettura/scrittura è il punto (identificato in numero di byte) dove è
+terminata l'ultima operazione
+(di lettura o scrittura) sul file aperto, o meglio l'ultima effettuata
+attraverso l'apertura identificata da "fildes" (su un file vi possono
+infatti essere più aperture contemporaneamente, ognuna ha un
+puntatore diverso).&nbsp;
+<pre><br>DUP e DUP2:</pre>
+<pre>	int dup(int oldfd);</pre>
+<pre>	int dup2(int oldfd, int newfd);</pre>copiano il descrittore di
+file "oldfd" nel primo elemento libero della tabella dei file aperti
+(nel caso di "dup", che restituisce il descrittore in cui ha copiato) o
+in "newfd" (nel caso di "dup2")<br>Sono utilizzate per la ridirezione dei file standard, ad esempio
+dall'interprete dei comandi per interpretare correttamente comandi come
+"ls &gt; pippo", in cui si vuole che l'output del comando venga diretto
+sul file "pippo".<br>
+<br>
+<span style="font-weight: bold;">ESERCIZIO 1.1</span>: visualizzare le pagine del "man" relative alle
+chiamate di sistema open e read.<br>(bisogna
+usare la sezione 2, dedicata alle chiamate di sistema, se no troviamo i
+comandi, non le chiamate di sistema; e "man man" ci dice come fare ad
+accedere ad una specifica sezione del man)<br>
+<h4>**********************************</h4>
+<h4>ESEMPI</h4>
+<h4>**********************************</h4>
+Il seguente programma è un esempio di uso di system calls su
+files e di gestione di errori di sistema:
+<pre>:::::::::::::: <br>readerr.c <br>::::::::::::::<br><br>#include &lt;stdio.h&gt;<br>#include &lt;unistd.h&gt;<br>#include &lt;fcntl.h&gt;<br><br>int main(int argc, char *argv[])<br>{<br>  int f,i,n,ne;<br>  char buf[20];<br><br>  f=open("fileprova",O_RDONLY);<br>  if (f==-1) {<br>        perror("Errore apertura file");<br>        return(1);      /* qualcosa non e' andato bene */<br>  }<br>  else<br>        {<br>        printf("Numero bytes da leggere (max 20): ");<br>        scanf("%d",&amp;n);<br>        if (n&gt;20) n=20;<br>        ne=read(f,buf,n);<br>        printf("letti %d caratteri: ",ne);<br>        for (i=0;i&lt;ne;i++) putchar(buf[i]);<br>        printf("\n");<br>        return(0);<br>        }<br>}<br><br>::::::::::::::</pre><br>
+Tutte le system calls (che restituiscono un intero) in caso di errore
+restituiscono il valore -1 e valorizzano una variabile intera "errno"
+con un
+valore diverso per ogni tipo di errore.<br>
+Il programma nell'esempio utilizza la funzione&nbsp; "perror" della
+libreria standard per ottenere
+un sintetico messaggio di errore che combina: un messaggio appropriato
+per ogni tipo di errore (associato al valore della variable "errno") -
+in questo caso, e uno che passiamo alla "perror".<br>
+La variabile "errno" non deve essere dichiarata, ma se la si vuole usare è necessario
+includere il file &lt;errno.h&gt; che non approfondiamo.<br>
+Si noti che i messaggi di errore sono stampati sullo stream <i>standard
+error </i>con fprintf(stderr, ...) invece che sullo <i>standard
+output </i>con printf. É bene seguire sempre questa convenzione
+che dà la possibilità di ridirigere separatamente
+l'output "normale" di un
+programma (con "&gt; nomefile") e i messaggi di errore (con "2&gt;
+&nbsp;nomefile"
+nella bash e in alcune altre shell, "&gt;&amp; nomefile" in altre
+ancora).<br>
+Il file errno.h, da includere con la notazione &lt;errno.h&gt;
+&nbsp;(che come noto indica che il file da includere si trova in una
+opportuna directory, tipicamente&nbsp; /usr/include/, dove vengono
+messi tutti i file .h delle librerie standard), definisce nomi di
+costanti per i diversi possibili codici di errore; a questi nomi
+simbolici si fa riferimento nel man della chiamata di sistema, nella
+sezione "ERRORS". Ad esempio per open "ENOENT" (che presumibilmente sta
+per "error: no entry") indica che il file da aprire non esiste (e non
+è stato chiesto di crearlo con opportune opzioni di open).<br>
+<br>
+<span style="font-weight: bold;">ESERCIZIO 1.2</span>: trovare questa informazione nel "man".<br>
+<br>
+I valori possibili di errno e i nomi di costanti possono essere
+utilizzati per programmare opportunamente il comportamento in caso di
+errore, specie nel caso si voglia fare qualcosa di diverso dalla
+segnalazione di un messaggio di errore, o lo si voglia personalizzare:<br>
+<pre>  if (f==-1) if (errno == ENOENT) ....<br></pre><span style="font-weight: bold;"></span><br>
+<span style="font-weight: bold;">ESERCIZIO 1.3</span>: eseguire il programma: &nbsp; <br>
+<ul>
+  <li>&nbsp;&nbsp; in presenza e in assenza di un file di nome
+"fileprova"; </li>
+  <li>&nbsp;&nbsp; ridirigendo lo&nbsp;standard error quando "fileprova" non c'è </li>
+</ul>
+Si noti che anche per la "read" sarebbe necessario verificare se ci
+sono errori. <br>
+Per non appesantire troppo la scrittura dei programmi che utilizzano le
+chiamate di sistema, ma d'altra parte non tralasciare la verifica degli
+errori, si può effettuare quest'ultima in modo uniforme per tutte le
+chiamate di sistema definendo una funzione per effettuare
+le chiamate di sistema.<br>
+I seguenti files call1.h e call1.c costituiscono un <span style="font-style: italic;">microscopico </span>esempio di
+definizione di una libreria, in cui definiamo delle funzioni (una sola
+in questo caso) che possono essere riutilizzate in tanti altri
+programmi. In questo caso costerebbe poco copiare e incollare la
+definizione della funzione "call" in tutti i file che la usano e
+ricompilarla tutte le volte, ma usare file separati facilita la
+modifica di una libreria.<br>
+Si ricorda che per convenzione si usa un file .h "header" (intestazione) che contiene solo la
+dichiarazione della funzione call (il suo prototipo) e un file .c che ne contiene la definizione. <br>
+Il file .c che usa la funzione include il file "call1.h" in modo che il
+compilatore possa "vedere" la dichiarazione della funzione che viene
+chiamata in esso, e nella generazione del file eseguibile deve essere
+effettuato il collegamento con il codice della funzione call.<br>
+In questo caso la definizione della funzione è semplice
+in quanto essa prende semplicemente il risultato della chiamata di
+sistema, se si è verificato un errore (il risultato è -1)
+chiama&nbsp; la "perror" passandogli il messaggio aggiuntivo da
+stampare passato alla call stessa, e termina l'esecuzione del
+programma; cioè qualunque errore che occorre in una chiamata di
+sistema viene considerato "fatale" per il proseguimento del programma,
+con la chiamata di exit che forza la terminazione del programma. Per
+convenzione, un valore diverso da 0 (in questo caso, 1) passato ad exit
+indica la terminazione a causa di un errore. Si vedrà in seguito come si può utilizzare questa informazione.<br>
+<br>
+<pre>::::::::::::::<br>call.h<br>::::::::::::::</pre>
+<pre>#include &lt;stdlib.h&gt;<br><br>int call(int res, char * msg);<br></pre>
+<pre>::::::::::::::<br>call.c<br>::::::::::::::</pre>
+<pre>#include &lt;stdio.h&gt;<br>#include "call.h"<br><br>int call(int res, char * msg)<br>{<br>        if (res == -1)<br>        {<br>                perror(msg);<br>                exit(1);<br>        }<br>        else return res;<br>}<br><br></pre>
+<pre>::::::::::::::<br>readerr1.c<br>::::::::::::::</pre><pre>#include &lt;stdio.h&gt;<br>#include &lt;unistd.h&gt;<br>#include &lt;fcntl.h&gt;<br>#include "call.h"<br><br>int main(int argc, char *argv[])<br>{<br>  int f,i,n,ne;<br>  char buf[20];<br><br>  call(f=open("fileprova",O_RDONLY),"Errore apertura file");<br>  printf("Numero bytes da leggere (max 20): ");<br>  scanf("%d",&amp;n);<br>  call(ne=read(f,buf,n),"Errore Read");<br>  printf("letti %d caratteri: ",ne);<br>  for (i=0;i&lt;ne;i++) putchar(buf[i]);<br>  printf("\n");<br>  return 0;<br>}<br><br>::::::::::::::</pre>
+<br>
+Una&nbsp;realizzazione più flessibile potrebbe limitarsi a "nascondere"
+dentro call solo l'eventuale stampa del messaggio di errore, e lasciare
+al programma
+chiamante il compito di decidere se proseguire o no. <br>
+In questo caso va utilizzato il valore restitiuito dalla funzione
+chiamando ad esempio:<br><pre>call(f=open("fileprova",O_RDONLY),"Errore apertura file");<br>if (f == -1) ...<br></pre>
+<h4>********************************** </h4>
+<h4>RIDIREZIONE&nbsp; </h4>
+<h4>********************************** </h4>
+Esempio di ridirezione dello standard output:
+<pre>::::::::::::::<br>redir.c<br>::::::::::::::<br><br>#include &lt;stdio.h&gt;<br>#include &lt;sys/types.h&gt;<br>#include &lt;sys/stat.h&gt;<br>#include &lt;fcntl.h&gt;<br>#include &lt;unistd.h&gt;<br><br>int main(int argc, char *argv[])<br>{  <br>   int n=creat("pippo",0600);  /* ahi, non controlliamo eventuali errori... */<br>   close(1); /* chiude lo standard output */<br>   dup(n);   /* ora il descrittore 1 e' associato a pippo */<br>   close(n);<br>   printf("Hello \n");  /* oppure write(1,"Hello \n",7); */<br>   return 0;<br>}</pre>
+<pre>::::::::::::::<br></pre>
+Al posto di
+<pre>close(1);<br>dup(n);</pre>
+si può usare:<br>
+<pre>dup2(n,1)</pre>
+In entrambi i casi la stampa del messaggio, che è effettuata con
+<i>printf</i>, cioè sullo <i>standard output</i>, ha luogo sul
+file "pippo".<br>
+<h4>********************************** </h4>
+<h4>DIFFERENZA TRA L'USO DI SYSTEM CALLS E FUNZIONI DI LIBRERIA PER
+L'I/O</h4>
+<h4> ********************************** </h4>
+Le funzioni della libreria di I/O standard del linguaggio C sono
+realizzate mediante chiamate di sistema ed effettuano una
+"bufferizzazione" dei dati a livello del programma utente; cioè,
+ad esempio, per la scrittura, usano un <i>buffer </i>(letteralmente
+"tampone", nell'informatica: una zona di memoria utilizzata per
+parcheggiare temporaneamente dei dati)
+in cui vengono accumulati i byte che il processo scrive con printf,
+putchar
+e simili; solo in certi momenti il buffer viene svuotato sul file
+effettuando una chiamata di sistema write: <br>
+<ul>
+  <li>quando è pieno; </li>
+  <li>per file associati a un terminale (non un disco), quando si ha
+una riga intera (cioè quando si scrive un "\n"); </li>
+  <li>quando il file viene chiuso (con fclose); </li>
+  <li>quando il processo (programma) termina di sua iniziativa,
+cioè arriva al termine del suo "main", oppure chiama la funzione
+"exit"; </li>
+  <li>quando viene chiamata la funzione: </li>
+</ul>
+<pre>		int fflush(FILE *stream);<br></pre>
+In lettura (es. chiamata di getchar o scanf), viene letto un blocco di
+dati nel buffer, se questo è vuoto; altrimenti si leggono i
+dati dal buffer precedentemente riempito. <br>
+<br>
+Per saperne di più consultare ad es. il classico testo sul C di
+Kernighan &amp; Ritchie, cap.8, e il manuale on line. <br>
+<br>
+Il tipo di bufferizzazione di default dipende dal tipo di dispositivo a
+cui il file è associato; per file su disco il default è a
+blocchi, ad es. di 1024 bytes, o 2048, etc; per i terminali, a righe. <br>
+Se si vuole cambiarla per un file si può usare la funzione
+setvbuf (vedere man setvbuf) una volta per tutte subito dopo aver
+aperto il file. Se si vuole alterare il meccanismo solo in opportuni
+momenti, usare fflush. <br>
+<br>
+In generale è conveniente usare le funzioni di libreria e non
+le system calls, perché offrono molte funzionalità in
+più (es. printf formatta l'output in vari modi, per esempio
+permette
+di scrivere valori numerici in formato decimale) e perché si
+fanno
+meno chiamate al sistema operativo, che comportano un certo <i>overhead</i>
+(lavoro di gestione aggiuntivo) dovuto al passaggio alla modalità
+kernel. Ad esempio è pesante chiamare&nbsp;molte volte read o write per un carattere alla volta, mentre se ad es. si
+effettuano
+ripetute chiamate di putchar, solo ogni tanto (quando c'è da svuotare
+il buffer, quindi una volta ogni 1024, o 2048, etc)
+queste chiamate daranno luogo a una chiamata di sistema.<br>
+<br>Lo si può notare con i due programmi seguenti.<br><pre>::::::::::::::<br>loopsc.c<br>::::::::::::::</pre><span style="font-family: monospace;"></span><span style="font-family: monospace;">#include &lt;stdio.h&gt;<br>#include &lt;stdlib.h&gt;<br>#include &lt;unistd.h&gt;<br><br>int main(int argc, char *argv[])<br>{<br>&nbsp;&nbsp;&nbsp; int n=1000,i;<br><br>&nbsp;&nbsp;&nbsp; if (argc==2) n=atoi(argv[1]); else return 1;<br><br>&nbsp;&nbsp;&nbsp; for(i=0;i&lt;n;i++)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; write(1,"Q",1);<br><br>&nbsp;&nbsp;&nbsp; return 0;<br>}<br></span><br><pre>::::::::::::::<br>looplf.c<br>::::::::::::::<br><br>#include &lt;stdio.h&gt;<br>#include &lt;stdlib.h&gt;<br><br>int main(int argc, char *argv[])<br>{<br>    int n=1000,i;<br><br>    if (argc==2) n=atoi(argv[1]); else return 1;<br><br>    for(i=0;i&lt;n;i++)<br>        putchar('q');<br>}<br><br></pre><span style="font-family: monospace;"></span><br>Entrambi
+scrivono ripetutamente un carattere, il primo con la chiamata di
+sistema, il secondo con la funzione di libreria, per un numero di volte
+passato come argomento.<br><br><span style="font-weight: bold;">ESERCIZIO 1.4. </span>Dopo aver generato gli eseguibili "loopsc" e "looplf", chiamare ad esempio:<br><br>&nbsp;&nbsp;&nbsp; <span style="font-family: monospace;">time ./looplf 1000 &gt; /dev/null<br></span><br>&nbsp;&nbsp;&nbsp; <span style="font-family: monospace;">time ./loopsc 1000 &gt; /dev/null<br></span><br>proseguendo
+con valori più grandi dell'argomento (10000, 100000, 1000000,...) si
+noterà una differenza sempre più significativa tra i tempi di
+esecuzione delle due versioni. Il
+comando "time" esegue il comando sul resto della riga, fornendo il
+tempo "real" trascorso in totale, il tempo "user" di esecuzione in user
+mode, il tempo "sys" di esecuzione in kernel mode.&nbsp;Per evitare di
+generare file enormi, e per non coinvolgere il tempo di esecuzione di
+vere operazioni su dispositivo (anche su quelle c'è differenza), <span style="font-weight: bold;"></span>l'output viene
+ridiretto su /dev/null, un "finto" dispositivo che non fa nulla dei
+byte che riceve.&nbsp;<span style="font-weight: bold;"></span><br><br>In casi molto particolari ci sono anche delle differenze di risultato, come nei seguenti
+due programmi, che scrivono alcuni bytes e poi effettuano un ciclo
+infinito:
+<pre>::::::::::::::<br>hellosc.c<br>::::::::::::::<br><br>#include &lt;unistd.h&gt;<br><br>int main(int argc, char *argv[])<br>{  <br>   write(1,"Hello \n",7); <br>   for (;;);<br>}<br></pre><pre>::::::::::::::<br>hellolf.c<br>::::::::::::::<br><br>#include&lt;stdio.h&gt;<br><br>int main(int argc, char *argv[])<br>{<br>   printf("Hello \n");<br>   for (;;);<br>}<br></pre>Essi sembrano equivalenti: entrambi scrivono e poi devono essere
+interrotti. <br>
+Se però si ridirige l'output dei due programmi su un file, oppure non si stampa il \n, sono ancora equivalenti? Si noti che
+quando il&nbsp;processo termina perché viene interrotto,
+il buffer <i>non</i> viene svuotato.<br><br>
+<span style="font-weight: bold;">ESERCIZIO 1.5</span>: usare fflush o setvbuf per rendere il loro comportamento
+analogo anche in questi casi.<br>
+<br>
+In seguito si vedranno esempi più significativi di casi in cui&nbsp;la bufferizzazione causa risultati diversi.<br><br>
+<br>
+<br>
+</body></html>

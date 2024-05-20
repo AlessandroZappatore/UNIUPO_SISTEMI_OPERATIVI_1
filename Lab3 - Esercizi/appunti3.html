@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+  <title>Appunti Laboratorio Sistemi Operativi, Parte 2BC</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
+<body><h2>APPUNTI DI SISTEMI OPERATIVI 1 PER LE ESERCITAZIONI IN LABORATORIO</h2><h2>
+CHIAMATE DI SISTEMA - PARTE 3</h2><h4>****************************************</h4>
+<h4>SEGNALI</h4>
+<h4>****************************************</h4>
+I segnali sono il meccanismo con cui il sistema operativo comunica
+ad un processo il verificarsi di un evento, tipicamente inatteso, che
+pu� essere:<br>
+<ul>
+  <li>asincrono, cio� scorrelato con l'istruzione che il
+processo stava eseguendo, ad esempio:</li>
+  <ul>
+    <li>l'utente ha battuto un carattere (o combinazione di caratteri;
+tipicamente CTRL-C o DELETE) "di interruzione"</li>
+    <li>� suonata una "sveglia" che il processo ha programmato
+in precedenza</li>
+    <li>un altro processo (per esempio uno che esegue il comando
+"kill") ha eseguito una chiamata di sistema "kill" per inviare un
+segnale a&nbsp; quel processo<br>
+    </li>
+  </ul>
+  <li>sincrono, cio� correlato con l'istruzione che il processo
+stava eseguendo, ad esempio: il processo ha tentato di far riferimento
+ad un indirizzo di memoria per lui non valido<br>
+  </li>
+</ul>
+Ad ognuno di questi tipi di eventi � associato un numero di
+segnale, "nascosto" in una costante simbolica definita in un opportuno
+file header signal.h da includere nei programmi che utilizzano i
+segnali.<br>
+Nel primo, secondo e quarto esempio di cui sopra le costanti si
+chiamano: SIGINT, SIGALRM, SIGSEGV, mentre con la chiamata di sistema e
+il comando kill si pu� inviare qualunque segnale. Tuttavia
+� bene evitare di inviare segnali come SIGSEGV che hanno un
+preciso significato, ha invece senso inviare i segnali il cui scopo
+� terminare il processo, come SIGTERM e SIGKILL, o i segnali il
+cui significato � "definito dall'utente" SIGUSR1 e SIGUSR2,
+sebbene questi ultimi possano essere utilizzati solo
+per meccanismi molto rudimentali di sincronizzazione tra processi.
+Successivamente ai segnali, sono state introdotte in Unix altre
+primitive di sincronizzazione descritte pi� avanti nel corso ed
+� bene utilizzare quelle.<br>
+<br>
+Per ogni segnale esiste un comportamento di default associato dal
+sistema operativo che pu� essere:<br>
+<ul>
+  <li>il processo che ha ricevuto il segnale termina;</li>
+  <li>idem, con in pi� il salvataggio di un file di nome "core"
+che contiene l'immagine di memoria del processo al momento della
+terminazione, e pu� essere utilizzato per capire il motivo del
+segnale (in particolare nel caso di SIGSEGV);</li>
+  <li>il processo ignora il segnale<br>
+  </li>
+</ul>
+Il man ("man -s 7 signal" su Linux) descrive l''elenco
+completo dei tipi di segnali con il loro identificatore numerico, il
+corrispondente nome simbolico, il comportamento associato per default
+al segnale, e il significato del segnale (tipicamente, evento in
+conseguenza del quale viene inviato).<br>
+Un processo pu� modificare il proprio comportamento associato
+alla ricezione del segnale, tranne per il segnale SIGKILL che esiste
+proprio per assicurare un modo di terminare un processo contro cui il
+processo
+stesso non pu� fare nulla.<br>
+<h4>********************************************************************</h4>
+Una interfaccia semplice, ma non robusta, di gestione
+dei segnali, (la documentazione si riferisce a questo caso con il
+termine <i><b>unreliable signals</b></i> - segnali inaffidabili) che
+� rimasta parte dello standard dell'ANSI C ma non fa parte dello
+standard POSIX dei sistemi Unix.<br>
+In questo caso il comportamento associato ad un segnale pu�
+essere modificato con la funzione<span style="font-family: monospace;"> "</span>signal"<br><br>
+Una seconda interfaccia per i segnali (<i><b>reliable signals</b></i>
+- segnali affidabili - nella documentazione) � definita nello
+standard POSIX e prevede la seguente chiamata di sistema:<br>
+<br>
+SIGACTION:<br>
+<pre>&nbsp; int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)</pre>
+La "struct sigaction" passata come secondo parametro include i seguenti
+campi:<br>
+<pre>&nbsp; void (*sa_handler)(int);&nbsp;&nbsp;&nbsp; /* SIG_DFL, SIG_IGN, or pointer to a function */<br>&nbsp; sigset_t sa_mask;&nbsp;&nbsp; /* Additional signals to be blocked during execution of<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; signal-catching function */<br>&nbsp; int sa_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Special flags to affect behavior of signal */</pre>
+Questa funzione setta il comportamento associato al segnale "signum" a
+quello specificato in *act (se act non � NULL) e restituisce in
+*oldact &nbsp;(se oldact non � NULL) il comportamento precedente.<br>Nel caso in cui
+non ci interessi memorizzare il comportamento precedente, si pu� chiamare:<br><pre>&nbsp; act.sa_handler=f;  /* oppure SIG_IGN oppure SIG_DFL */<br>  sigemptyset(&amp;act.sa_mask);<br>&nbsp; sigaction(s,&amp;act,NULL)</pre>
+In base allo standard (e quindi su tutte le implementazioni conformi
+allo standard), per default, cio� se non lo si chiede con
+opportune opzioni, il comportamento NON viene rimpiazzato con quello
+per default quando il
+segnale viene ricevuto (come invece avviene per la funzione "signal").<br>
+La chiamata di sigaction associa alla ricezione del segnale
+"s" ("signum" nel prototipo) il comportamento specificato dal campo
+sa_handler della struttura puntata dal secondo argomento; tale campo
+pu�
+essere:<br>
+<ul>
+  <li>SIG_IGN per indicare che il segnale � da ignorare;</li>
+  <li>SIG_DFL: per ottenere il comportamento per default associato
+al segnale (utile ovviamente in caso si voglia ripristinare il
+comportamento per default modificato in precedenza);&nbsp;</li>
+  <li>Un puntatore ad una funzione con argomento intero e che
+restituisce il tipo generico "void". In questo caso si dice che il
+processo "cattura" il segnale: quando il segnale viene "consegnato" al
+processo, viene chiamata la funzione, passandogli come argomento il
+numero del segnale ricevuto (avere questo argomento pu� essere
+utile per associare una stessa funzione a pi� segnali, ma fare
+in modo che la funzione sappia quale segnale in particolare �
+stato consegnato). Al termine dell'esecuzione della funzione (se ci si
+arriva, cio� se questa non chiama exit) il processo riprende ad
+eseguire dal punto in cui era arrivato al momento della consegna del
+segnale.</li>
+</ul>
+E' possibile (vedere il man, i testi etc) utilizzare come "handler"
+funzioni con un altro prototipo (usando un altro campo della "struct
+sigaction").<br><br>Catturare i segnali pu� servire a vari scopi, ad
+esempio: <br>
+  <blockquote><ul type="circle">
+    <li>Eseguire alcune "ultime volont�" prima di terminare, per
+fare in modo ad esempio che quando si chiede di terminare il processo,
+prima
+di terminare davvero, esso rimuova ad esempio dei file temporanei che
+aveva aperto per svolgere il suo lavoro. In questo caso nella funzione
+associata al segnale si chiamer� "exit" alla fine</li>
+    <li>Andare a leggere dei file di configurazione. Questo meccanismo
+� usato ad esempio per dei processi che svolgono sulla macchina
+un servizio, in base a informazioni di configurazione contenute in un
+file, che viene letto
+normalmente quando viene fatto partire il servizio, ad esempio
+all'avvio del
+sistema. Se vogliamo cambiare queste informazioni, ma non far ripartire
+il
+servizio da zero, in particolare non far ripartire tutto il sistema
+operativo, possiamo associare, nel codice del processo che svolge il
+servizio, alla ricezione
+di un particolare segnale la rilettura delle informazioni di
+configurazione.&nbsp;<br></li>
+  </ul>
+</blockquote>
+<br>
+Il seguente esempio illustra come modificare il comportamento associato
+ai segnali, prevedendo l'esecuzione di una funzione:<br>
+<pre><br>::::::::::::::<br>sig.c<br>::::::::::::::<br>#include &lt;stdio.h&gt;<br>#include &lt;signal.h&gt;<br><br>void f_intr(int sig)<br>{<br>  printf("ricevuto il segnale numero : %d\n",sig);<br>}<br>int main(int argc, char *argv[])<br>{<br>  int m,n;<br>  struct sigaction sa;<br><br>  sa.sa_handler = f_intr;<br>  sigemptyset(&amp;sa.sa_mask);<br>  sa.sa_flags = 0;<br>  sigaction(SIGINT,&amp;sa,NULL);<br>  for (m=0;m&lt;100;m++)<br>  {<br>    for (n=0;n&lt;200000000;n++);<br>    printf("working\n");<br>  }<br>  return 0;<br>}<br><br>::::::::::::::<br></pre>
+Dando il carattere di interruzione (CTRL-c) viene chiamata f_intr.<br>
+<br>
+I segnali possono essere inviati anche con la s.c. kill e il comando
+kill (vedere il man corrispondente).<br>
+La sleep utilizzata in precedenza � tipicamente realizzata
+mediante i segnali (vedere man -s 3 sleep, man -s 2 alarm, e man -s 2
+pause): alarm(n) "prenota" un segnale SIGALRM che verr� inviato
+al processo corrente dopo n secondi; pause() sospende il processo fino
+all'arrivo di un (qualunque) segnale, quindi se nel frattempo arriva
+qualche altro segnale, il processo viene risvegliato prima degli n
+secondi.<br>
+<br><span style="font-weight: bold;">
+ESERCIZIO 2.8</span>: eseguire
+l'eseguibile "sig" di "sig.c" in una finestra; inviare il segnale di interruzione con CTRL-C, poi da un'altra finestra individuare
+con "ps -a" il pid del processo che esegue "sig" ed inviargli con il
+comando kill il segnale di interruzione (SIGINT), quello di
+terminazione (SIGTERM) e (in una diversa esecuzione) quello di accesso
+non valido alla memoria
+(SIGSEGV).<br>
+<br><span style="font-weight: bold;">ESERCIZIO 2.9</span>: modificare il programma in modo da ignorare il segnale
+di interruzione.<br>
+<br><span style="font-weight: bold;">
+ESERCIZIO 2.10</span>: verificare, integrando gli esempi precedenti che
+utilizzano fork, exec e sigaction, se le disposizioni "ignorare il
+segnale" ed "eseguire una funzione" vengono:<br>
+<ul>
+  <li>"ereditate" da un processo figlio, qualora richieste dal processo
+padre prima della fork;</li>
+  <li>mantenute da un processo che effettua una system call exec.<br>
+  </li>
+</ul>
+Un'altra caratteristica utile dell'interfaccia detta "reliable signals"
+� la possibilit� per un processo di chiedere che la
+consegna di alcuni segnali inviati al processo venga bloccata fino a
+quando il processo non dispone lo sblocco, o dispone di ignorare il
+segnale (si veda&nbsp;Stevens &amp; Rago, "Advanced Programming in the Unix
+Environment").<br>
+<br>
+<h4>****************************************</h4>
+<h4>PIPES<br>
+</h4>
+<h4>****************************************</h4>
+La system call:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; int pipe(int fildes[2]);<br>
+<br>
+crea una pipe, valorizzando fildes[0] con un file descriptor (indice
+nella tabella dei files aperti) che pu� essere usato per leggere
+dalla pipe, e fildes[1] con uno che pu� essere utilizzato per
+scrivere.<br>
+<br>
+L'esempio seguente qualcosa di simile a quanto avviene nell'interprete dei comandi
+per eseguire:<br><pre>ls -l | wc -l</pre>
+in cui lo standard output del comando "ls -l" (elenco in formato lungo
+dei file nella directory corrente) diventa lo standard input del
+comando "wc" (conta le
+righe di un file testo).<br>
+<br>
+<pre>::::::::::::::<br>pipes.c<br>::::::::::::::<br><br>#include &lt;stdio.h&gt;<br>#include &lt;unistd.h&gt;<br>#include &lt;wait.h&gt;<br>#include &lt;sys/types.h&gt;<br><br>int main(int argc, char *argv[])<br>{<br>  int pipefd[2];<br><br>  pipe (pipefd);<br><br>  if (fork() == (pid_t)0) {<br>	/* primo figlio esegue "wc -l " (conta righe) prendendo <br>           l'input da pipefd[0] */<br>	dup2(pipefd[0],0); <br>	close(pipefd[0]);<br>	close(pipefd[1]);<br>	execlp("wc","wc","-l",NULL);<br>	perror("exec wc fallita");<br>  }<br>  else if (fork() == (pid_t)0) {<br>	/* secondo figlio esegue "ls -l" mandando l'output <br>	   su pipefd[1] */<br>	dup2(pipefd[1],1);<br>	close(pipefd[0]);<br>	close(pipefd[1]);<br>	execlp("ls","ls","-l",NULL);<br>	perror("exec ls fallita");<br>       }<br>       else<br>       { /* processo padre chiude entrambi gli estremi della pipe <br>	    e attende i figli */<br>         close(pipefd[0]);<br>	 close(pipefd[1]);<br>	 wait(NULL);<br>	 wait(NULL);<br>       }	<br>  return 0;<br>}<br>::::::::::::::<br><br></pre>N.B. un motivo per cui ci sono le varie "close" � la buona norma di chiudere i file descriptor non utilizzati da un
+processo, per non occupare inutilmente elementi della tabella dei file
+aperti. <br>
+Inoltre, la chiusura della pipe in scrittura da parte dei processi che
+non la usano per scrivere (padre e primo figlio in questo caso)
+pu� essere essenziale per la terminazione del processo che legge
+dalla pipe: infatti "wc" continua a leggere finch� non trova
+EOF (e non scrive finch� non
+legge l'ultima riga, dovendole contare).<br>
+L'EOF si ottiene su una pipe quando non ci sono pi� processi
+che hanno la pipe aperta in scrittura (in questo caso, quando il
+processo
+che esegue "ls" termina).<br>
+<br><span style="font-weight: bold;">
+ESERCIZIO 2.11</span>: verificare che cosa accade se nel padre la
+close(pipefd[1]) viene tolta oppure messa dopo le wait.<br>
+<br>
+La creazione della pipe avviene a livello delle system calls; per
+leggere e scrivere sulla pipe, si possono usare le chiamate di
+sistema read e write, o le funzioni di libreria:<br>
+<ul>
+  <li> se dopo aver aperto la pipe si usa la f. di libreria fdopen che
+"trasforma" una apertura a livello di system calls in una apertura a
+livello di f. di libreria, in cui viene allocata la struttura di tipo
+FILE, contenente ad esempio il buffer utilizzato per risparmiare il
+numero di chiamate di sistema</li>
+  <li>se, come nell'esempio, il processo con opportune "dup" ha alcuni
+dei files standard associati a una pipe. In questo caso si sfruttano le
+strutture "FILE" della libreria gi� allocate per la gestione dei
+3 file standard . Il processo pu� quindi chiamare printf, scanf,
+getchar, putchar e queste daranno luogo (almeno in qualche caso, quando
+non
+sfruttano la bufferizzazione) a chiamate di read e write sui
+descrittori
+0 e 1 che possono essere stati associati alla pipe con le dup. In
+particolare
+se il processo fa exec di un programma; tale programma legge dal suo
+standard
+input e scrive sul suo standard output e funziona indipendentemente dal
+fatto
+che essi siano associati al terminale, a un file su disco o a una pipe.
+I
+due comandi ls e wc dell'esempio presumibilmente sono scritti
+in
+C utilizzando le funzioni di libreria per l'I/O.</li>
+</ul>
+Le pipes possono essere usate anche per comunicazioni "uno a molti",
+"molti a uno", "molti a molti". Si ha un comportamento
+nondeterministico del tipo "produttori e consumatori": se diversi
+processi scrivono sulla stessa pipe, nel flusso di dati risultante
+l'output dei diversi processi viene
+intercalato a seconda dell'effettivo ordine delle chiamate di sistema
+"write"
+sulla pipe da parte dei diversi processi; analogamente, se diversi
+processi
+leggono dalla stessa pipe, il flusso di dati viene consumato in parte
+da
+un processo, in parte dall'altro etc. a seconda di quando occorrono
+effettivamente
+le chiamate di sistema "read" e di quanti dati sono presenti nella pipe
+nel
+momento in cui occorrono.<br>
+<br>
+<br>
+</body></html>

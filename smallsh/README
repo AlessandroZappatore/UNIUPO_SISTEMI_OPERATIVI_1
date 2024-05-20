@@ -1,0 +1,6 @@
+smallsh.h, smallsh.c e input.c contengono il codice
+commentato della shell illustrata nelle esercitazioni 
+
+Compilare usando il makefile digitando "make".
+"make clean" rimuove i file prodotti dalla compilazione
+
