@@ -20,9 +20,3 @@ Questo repository contiene gli **esercizi pratici** svolti durante il corso di *
 5. 🧮 **Gestione della memoria**: tecniche e strutture.  
 6. 🖧 **Processi nel sistema Unix**: chiamate di sistema per gestione di processi e librerie per threads.  
 7. 🔧 **Chiamate di sistema e funzioni di libreria** per la sincronizzazione di processi e threads.
-
----
-
-📜 **Teoria**:  
-La parte teorica del corso può essere trovata nel repository degli appunti:  
-- [Appunti di Sistemi Operativi 1](https://github.com/AlessandroZappatore/UNIUPO_APPUNTI/tree/556925c0e52bc46600d768aa359082963d7393e7/SECONDO%20ANNO/Sistemi_operativi_1).
